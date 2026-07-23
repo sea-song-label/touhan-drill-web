@@ -9,6 +9,15 @@ const CHAPTER_NAMES = {
   5: "第5章 医薬品の適正使用・安全対策",
 };
 
+// アイコン（絵文字ではなくインラインSVGで統一感を出す）
+const ICONS = {
+  speaker: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path></svg>`,
+  check: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M8 12.5l2.5 2.5L16 9"></path></svg>`,
+  cross: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9 9l6 6M15 9l-6 6"></path></svg>`,
+  maru: `<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><circle cx="12" cy="12" r="8.5"></circle></svg>`,
+  batsu: `<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"></path></svg>`,
+};
+
 const app = document.getElementById("app");
 
 let ALL_QUESTIONS = [];
@@ -23,12 +32,47 @@ function shuffle(arr) {
   return a;
 }
 
-function speak(text) {
+// --- 音声選択：自然に聞こえる声を優先し、macOSのノベルティ音声
+// （Grandma/Grandpa/Rocko/Sandy等の変声エフェクト系）を避ける ---
+let cachedVoice = null;
+let voicesReady = null;
+
+function loadVoices() {
+  if (voicesReady) return voicesReady;
+  voicesReady = new Promise((resolve) => {
+    const v = window.speechSynthesis.getVoices();
+    if (v.length) { resolve(v); return; }
+    window.speechSynthesis.onvoiceschanged = () => resolve(window.speechSynthesis.getVoices());
+    setTimeout(() => resolve(window.speechSynthesis.getVoices()), 800);
+  });
+  return voicesReady;
+}
+
+const AVOID_VOICE_NAMES = ["grandma", "grandpa", "rocko", "sandy", "eddy", "flo", "reed", "shelley", "albert", "bad news", "bahh", "bells", "boing", "bubbles", "cellos", "wobble", "zarvox", "trinoids"];
+const PREFERRED_VOICE_NAMES = ["google 日本語", "kyoko"];
+
+async function pickVoice() {
+  if (cachedVoice !== null) return cachedVoice;
+  const voices = await loadVoices();
+  const ja = voices.filter((v) => v.lang && v.lang.toLowerCase().startsWith("ja"));
+  for (const pref of PREFERRED_VOICE_NAMES) {
+    const found = ja.find((v) => v.name.toLowerCase().includes(pref));
+    if (found) { cachedVoice = found; return found; }
+  }
+  const safe = ja.find((v) => !AVOID_VOICE_NAMES.some((bad) => v.name.toLowerCase().includes(bad)));
+  cachedVoice = safe || ja[0] || null;
+  return cachedVoice;
+}
+
+async function speak(text) {
   if (!("speechSynthesis" in window)) return;
   window.speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
   u.lang = "ja-JP";
-  u.rate = 0.98;
+  u.rate = 1.0;
+  u.pitch = 1.0;
+  const voice = await pickVoice();
+  if (voice) u.voice = voice;
   window.speechSynthesis.speak(u);
 }
 
@@ -89,19 +133,20 @@ function renderQuestion() {
     <div class="question-card">
       <span class="question-chapter-tag">${CHAPTER_NAMES[q.chapter] || ""}</span>
       <p class="question-text">${q.q}</p>
-      <button class="speak-btn" id="speakBtn">🔊 読み上げる</button>
+      <button class="icon-btn" id="speakBtn">${ICONS.speaker}<span>読み上げる</span></button>
     </div>
 
     <div class="answer-buttons">
-      <button class="answer-btn maru" data-choice="true">◯</button>
-      <button class="answer-btn batsu" data-choice="false">✕</button>
+      <button class="answer-btn maru" data-choice="true">${ICONS.maru}</button>
+      <button class="answer-btn batsu" data-choice="false">${ICONS.batsu}</button>
     </div>
   `;
 
   document.getElementById("speakBtn").addEventListener("click", (e) => {
+    const btn = e.currentTarget;
     speak(q.yomi_q || q.q);
-    e.target.classList.add("speaking");
-    setTimeout(() => e.target.classList.remove("speaking"), 1500);
+    btn.classList.add("speaking");
+    setTimeout(() => btn.classList.remove("speaking"), 1500);
   });
 
   app.querySelectorAll(".answer-btn").forEach((btn) => {
@@ -132,21 +177,22 @@ function handleAnswer(choice) {
     </div>
 
     <div class="result-card ${correct ? "correct" : "wrong"}">
-      <p class="result-verdict">${correct ? "✅ 正解！" : "❌ 不正解"}</p>
+      <p class="result-verdict">${correct ? ICONS.check + "正解！" : ICONS.cross + "不正解"}</p>
       <p class="result-correct-answer">正解：${q.a ? "◯" : "✕"}</p>
       <p class="result-exp">${q.exp}</p>
       <p class="result-cite">出典：${q.cite}</p>
-      <button class="speak-btn" id="speakExpBtn">🔊 解説を読み上げる</button>
+      <button class="icon-btn" id="speakExpBtn">${ICONS.speaker}<span>解説を読み上げる</span></button>
     </div>
 
     <button class="next-btn" id="nextBtn">${index + 1 < questions.length ? "次の問題へ" : "結果を見る"}</button>
   `;
 
   document.getElementById("speakExpBtn").addEventListener("click", (e) => {
+    const btn = e.currentTarget;
     const verdict = correct ? "正解。" : "不正解。";
     speak(verdict + (q.yomi_exp || q.exp));
-    e.target.classList.add("speaking");
-    setTimeout(() => e.target.classList.remove("speaking"), 1500);
+    btn.classList.add("speaking");
+    setTimeout(() => btn.classList.remove("speaking"), 1500);
   });
 
   document.getElementById("nextBtn").addEventListener("click", () => {
@@ -191,6 +237,7 @@ fetch("data/questions.json")
   .then((data) => {
     ALL_QUESTIONS = data;
     renderChapterSelect();
+    loadVoices(); // バックグラウンドで音声リストを先読み
   })
   .catch(() => {
     app.innerHTML = `<p style="text-align:center;color:var(--wrong);padding:40px 16px;">
