@@ -20,6 +20,17 @@ const ICONS = {
 
 const app = document.getElementById("app");
 
+const FEEDBACK_MAILTO =
+  "mailto:seasonglabel@gmail.com?subject=" +
+  encodeURIComponent("【登販ドリル】アプリ版へのご意見");
+
+const APP_PROMO_HTML = `
+  <div class="app-promo">
+    <p>スマホアプリ版を準備中です。<br>「こんな機能があれば買う」というご意見、お待ちしています。</p>
+    <a href="${FEEDBACK_MAILTO}">ご意見を送る</a>
+  </div>
+`;
+
 let ALL_QUESTIONS = [];
 let session = null; // {questions, index, score, chapterLabel}
 
@@ -100,6 +111,7 @@ function renderChapterSelect() {
       <span class="count">${ALL_QUESTIONS.length}問</span>
     </button>
     <div class="chapter-grid">${cards}</div>
+    ${APP_PROMO_HTML}
   `;
 
   app.querySelectorAll(".chapter-card").forEach((btn) => {
@@ -124,6 +136,7 @@ function renderQuestion() {
   const pct = Math.round((index / questions.length) * 100);
 
   app.innerHTML = `
+    <button class="quiz-back-link" id="quizBackBtn">← 章選択に戻る</button>
     <div class="progress-label">
       <span>${session.label}</span>
       <span>${index + 1} / ${questions.length}問</span>
@@ -141,6 +154,8 @@ function renderQuestion() {
       <button class="answer-btn batsu" data-choice="false">${ICONS.batsu}</button>
     </div>
   `;
+
+  document.getElementById("quizBackBtn").addEventListener("click", renderChapterSelect);
 
   document.getElementById("speakBtn").addEventListener("click", (e) => {
     const btn = e.currentTarget;
@@ -165,6 +180,7 @@ function handleAnswer(choice) {
   if (correct) session.score++;
 
   app.innerHTML = `
+    <button class="quiz-back-link" id="quizBackBtn">← 章選択に戻る</button>
     <div class="progress-label">
       <span>${session.label}</span>
       <span>${index + 1} / ${questions.length}問</span>
@@ -186,6 +202,8 @@ function handleAnswer(choice) {
 
     <button class="next-btn" id="nextBtn">${index + 1 < questions.length ? "次の問題へ" : "結果を見る"}</button>
   `;
+
+  document.getElementById("quizBackBtn").addEventListener("click", renderChapterSelect);
 
   document.getElementById("speakExpBtn").addEventListener("click", (e) => {
     const btn = e.currentTarget;
@@ -223,6 +241,7 @@ function renderResults() {
       <button class="primary-btn" id="retryBtn">もう一度挑戦する</button>
       <button class="secondary-btn" id="backBtn">章を選び直す</button>
     </div>
+    ${APP_PROMO_HTML}
   `;
 
   document.getElementById("retryBtn").addEventListener("click", () => {
@@ -230,6 +249,11 @@ function renderResults() {
   });
   document.getElementById("backBtn").addEventListener("click", renderChapterSelect);
 }
+
+// --- ヘッダーロゴ：常に章選択画面へ戻る ---
+document.getElementById("homeLink").querySelector("button").addEventListener("click", () => {
+  if (ALL_QUESTIONS.length) renderChapterSelect();
+});
 
 // --- 初期化 ---
 fetch("data/questions.json")
