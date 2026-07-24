@@ -31,22 +31,18 @@ function setCompactHeader(compact) {
   if (header) header.classList.toggle("compact", compact);
 }
 
-// 出題・解答ボタンを画面下部に固定表示する（問題文・解説の長さに関わらず必ずタップできる）
+// 出題・解答ボタンを画面下部に貼りつける（問題文・解説の長さに関わらず必ずタップできる）
+// #appの最後の子要素として配置し position:sticky で追従させる。
+// position:fixedはiOS Safariのツールバー表示中に隠れる不具合があるため使わない。
 function setStickyActions(html) {
-  let bar = document.getElementById("stickyActions");
-  if (html === null) {
-    if (bar) bar.remove();
-    app.classList.remove("has-fixed-actions");
-    return null;
-  }
-  if (!bar) {
-    bar = document.createElement("div");
-    bar.id = "stickyActions";
-    bar.className = "sticky-actions";
-    document.body.appendChild(bar);
-  }
-  bar.innerHTML = `<div class="sticky-actions-inner">${html}</div>`;
-  app.classList.add("has-fixed-actions");
+  const existing = document.getElementById("stickyActions");
+  if (existing) existing.remove();
+  if (html === null) return null;
+  const bar = document.createElement("div");
+  bar.id = "stickyActions";
+  bar.className = "sticky-actions";
+  bar.innerHTML = html;
+  app.appendChild(bar);
   return bar;
 }
 
