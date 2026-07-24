@@ -20,9 +20,35 @@ const ICONS = {
 
 const app = document.getElementById("app");
 
+// スクレイピング対策：メールアドレスを分割・組み立てて生の文字列をソースに残さない
+const FEEDBACK_EMAIL = ["seasonglabel", "+touhandrill", "@", "gmail.com"].join("");
 const FEEDBACK_MAILTO =
-  "mailto:seasonglabel@gmail.com?subject=" +
+  "mailto:" + FEEDBACK_EMAIL + "?subject=" +
   encodeURIComponent("【登販ドリル】アプリ版へのご意見");
+
+function setCompactHeader(compact) {
+  const header = document.querySelector(".app-header");
+  if (header) header.classList.toggle("compact", compact);
+}
+
+// 出題・解答ボタンを画面下部に固定表示する（問題文・解説の長さに関わらず必ずタップできる）
+function setStickyActions(html) {
+  let bar = document.getElementById("stickyActions");
+  if (html === null) {
+    if (bar) bar.remove();
+    app.classList.remove("has-fixed-actions");
+    return null;
+  }
+  if (!bar) {
+    bar = document.createElement("div");
+    bar.id = "stickyActions";
+    bar.className = "sticky-actions";
+    document.body.appendChild(bar);
+  }
+  bar.innerHTML = `<div class="sticky-actions-inner">${html}</div>`;
+  app.classList.add("has-fixed-actions");
+  return bar;
+}
 
 const APP_PROMO_HTML = `
   <div class="app-promo">
@@ -89,6 +115,8 @@ async function speak(text) {
 
 // --- 画面: 章選択 ---
 function renderChapterSelect() {
+  setCompactHeader(false);
+  setStickyActions(null);
   session = null;
   const counts = {};
   ALL_QUESTIONS.forEach((q) => { counts[q.chapter] = (counts[q.chapter] || 0) + 1; });
@@ -130,6 +158,7 @@ function startSession(questions, label) {
 
 // --- 画面: 出題 ---
 function renderQuestion() {
+  setCompactHeader(true);
   window.speechSynthesis && window.speechSynthesis.cancel();
   const { questions, index } = session;
   const q = questions[index];
@@ -148,11 +177,6 @@ function renderQuestion() {
       <p class="question-text">${q.q}</p>
       <button class="icon-btn" id="speakBtn">${ICONS.speaker}<span>読み上げる</span></button>
     </div>
-
-    <div class="answer-buttons">
-      <button class="answer-btn maru" data-choice="true">${ICONS.maru}</button>
-      <button class="answer-btn batsu" data-choice="false">${ICONS.batsu}</button>
-    </div>
   `;
 
   document.getElementById("quizBackBtn").addEventListener("click", renderChapterSelect);
@@ -164,7 +188,13 @@ function renderQuestion() {
     setTimeout(() => btn.classList.remove("speaking"), 1500);
   });
 
-  app.querySelectorAll(".answer-btn").forEach((btn) => {
+  const bar = setStickyActions(`
+    <div class="answer-buttons">
+      <button class="answer-btn maru" data-choice="true">${ICONS.maru}</button>
+      <button class="answer-btn batsu" data-choice="false">${ICONS.batsu}</button>
+    </div>
+  `);
+  bar.querySelectorAll(".answer-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       const choice = btn.dataset.choice === "true";
       handleAnswer(choice);
@@ -199,8 +229,6 @@ function handleAnswer(choice) {
       <p class="result-cite">出典：${q.cite}</p>
       <button class="icon-btn" id="speakExpBtn">${ICONS.speaker}<span>解説を読み上げる</span></button>
     </div>
-
-    <button class="next-btn" id="nextBtn">${index + 1 < questions.length ? "次の問題へ" : "結果を見る"}</button>
   `;
 
   document.getElementById("quizBackBtn").addEventListener("click", renderChapterSelect);
@@ -213,7 +241,10 @@ function handleAnswer(choice) {
     setTimeout(() => btn.classList.remove("speaking"), 1500);
   });
 
-  document.getElementById("nextBtn").addEventListener("click", () => {
+  const bar = setStickyActions(
+    `<button class="next-btn" id="nextBtn">${index + 1 < questions.length ? "次の問題へ" : "結果を見る"}</button>`
+  );
+  bar.querySelector("#nextBtn").addEventListener("click", () => {
     session.index++;
     if (session.index < session.questions.length) {
       renderQuestion();
@@ -225,6 +256,8 @@ function handleAnswer(choice) {
 
 // --- 画面: 結果 ---
 function renderResults() {
+  setCompactHeader(false);
+  setStickyActions(null);
   const { score, questions, label } = session;
   const rate = Math.round((score / questions.length) * 100);
   let comment = "この調子で続けましょう！";
