@@ -150,6 +150,11 @@ html, body {
   opacity: 0.85;
 }
 
+.app-footer a {
+  color: var(--text-muted);
+  text-decoration: underline;
+}
+
 /* --- 章選択 --- */
 .chapter-grid {
   display: grid;
