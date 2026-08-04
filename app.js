@@ -285,11 +285,26 @@ document.getElementById("homeLink").querySelector("button").addEventListener("cl
 });
 
 // --- 初期化 ---
+// URLに ?q=<配列index> が付いていれば、その1問だけを直接開く
+// （SNS投稿からのリンク先が章選択トップで終わり、答えにたどり着けない問題への対応）
+function getDeepLinkIndex() {
+  const params = new URLSearchParams(location.search);
+  const raw = params.get("q");
+  if (raw === null) return null;
+  const idx = parseInt(raw, 10);
+  return Number.isInteger(idx) ? idx : null;
+}
+
 fetch("data/questions.json")
   .then((r) => r.json())
   .then((data) => {
     ALL_QUESTIONS = data;
-    renderChapterSelect();
+    const idx = getDeepLinkIndex();
+    if (idx !== null && ALL_QUESTIONS[idx]) {
+      startSession([ALL_QUESTIONS[idx]], "この問題");
+    } else {
+      renderChapterSelect();
+    }
     loadVoices(); // バックグラウンドで音声リストを先読み
   })
   .catch(() => {
